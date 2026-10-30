@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Escala de Servidores da Missa</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        liturgic: {
+                            wine: '#6b1d2f',
+                            winelight: '#85283f',
+                            winedark: '#4a111e',
+                            gold: '#d4af37',
+                            goldlight: '#f3e5ab',
+                            navy: '#1b2a4a',
+                            cream: '#faf8f5',
+                        }
+                    },
+                    fontFamily: {
+                        garamond: ['"Cormorant Garamond"', 'serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f5f0;
+        }
+        .bg-church-overlay {
+            background-image: linear-gradient(rgba(247, 245, 240, 0.92), rgba(247, 245, 240, 0.92)), url('images.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        .header-title {
+            font-family: 'Cormorant Garamond', serif;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #85283f;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col justify-between bg-church-overlay">
+
+    <!-- Header Navigation -->
+    <header class="bg-liturgic-wine text-white shadow-lg border-b-4 border-liturgic-gold sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-4 py-5 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchView('public')">
+                <div class="bg-white p-1 rounded-xl shadow-inner flex items-center justify-center w-21 h-20 overflow-hidden border-2 border-liturgic-gold/60">
+                    <img src="logo.png" alt="Logo Paróquia Cristo Ressuscitado" class="w-full h-full object-contain">
+                </div>
+                <div>
+                    <h1 class="header-title text-2xl sm:text-3xl font-bold tracking-wide leading-none text-liturgic-goldlight">Paróquia Cristo Ressuscitado</h1>
+                    <p class="text-xs sm:text-sm text-rose-200 font-light mt-1">Escala de Missas e Celebrações</p>
+                </div>
+            </div>
+
+            <!-- Header Action Buttons -->
+            <div class="flex items-center gap-3">
+                <button id="btn-public-view" onclick="switchView('public')" class="px-3.5 py-1.5 rounded-lg text-sm font-medium bg-liturgic-winelight border border-liturgic-gold/40 hover:bg-liturgic-winedark transition text-white flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-days"></i> Escala
+                </button>
+                <button id="btn-admin-view" onclick="openAdminModal()" class="px-3.5 py-1.5 rounded-lg text-sm font-medium bg-liturgic-gold text-liturgic-winedark font-semibold hover:bg-amber-300 transition shadow flex items-center gap-2">
+                    <i class="fa-solid fa-user-gear"></i> Área do Coordenador
+                </button>
+                <button id="btn-logout" onclick="logoutAdmin()" class="hidden px-3.5 py-1.5 rounded-lg text-sm font-medium bg-red-800 hover:bg-red-900 transition text-white flex items-center gap-2">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sair
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notification Toast -->
+	<div id="toast-container" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Main Content Area -->
+    <main class="max-w-6xl mx-auto px-4 py-8 w-full flex-grow">
+
+        <!-- ================= PUBLIC VIEW ================= -->
+        <section id="view-public" class="space-y-6">
+            <div class="bg-white/90 backdrop-blur-md border-l-4 border-liturgic-gold p-5 rounded-r-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-liturgic-wine flex items-center gap-2">
+                        <i class="fa-solid fa-hands-praying"></i> Formulário para Inscrição
+                    </h2>
+                    <p class="text-sm text-slate-600 mt-1">
+                        Selecione a celebração desejada e faça sua inscrição para servir. Fique atento aos limites de vagas para Coroinha e Cerimoniário!
+                    </p>
+                </div>
+            </div>
+
+            <!-- Filter / Search Bar -->
+            <div class="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-sm flex flex-col md:flex-row gap-3 justify-between items-center">
+                <div class="relative w-full md:w-72">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="public-search" oninput="renderPublicMasses()" placeholder="Buscar missa ou data..." class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-liturgic-wine">
+                </div>
+                <div class="flex items-center gap-2 text-xs text-slate-500 w-full md:w-auto justify-end">
+                    <span class="inline-block w-3 h-3 rounded-full bg-emerald-500"></span> Vagas Disponíveis
+                    <span class="inline-block w-3 h-3 rounded-full bg-red-500 ml-2"></span> Esgotado
+                </div>
+            </div>
+
+            <!-- List of Masses (Cards) -->
+            <div id="masses-list-public" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Cards renderizados dinamicamente via JS -->
+            </div>
+        </section>
+
+        <!-- ================= ADMIN VIEW ================= -->
+        <section id="view-admin" class="hidden space-y-6">
+            <div class="bg-liturgic-navy/95 backdrop-blur-md text-white p-6 rounded-xl shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    
+                    <h2 class="text-2xl font-bold mt-1 text-white">Gestão da Coordenadoria</h2>
+                    <p class="text-sm text-slate-300">Ajuste os limites de Coroinhas e Cerimoniários, adicione celebrações e gerencie a lista.</p>
+                </div>
+                <button onclick="openMassModal()" class="w-full sm:w-auto px-4 py-2.5 bg-liturgic-gold text-liturgic-winedark font-bold rounded-lg shadow hover:bg-amber-300 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Nova Celebração
+                </button>
+            </div>
+
+            <!-- Admin Stats Summary -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-100">
+                    <p class="text-xs text-slate-500 font-medium uppercase">Total de Missas</p>
+                    <p id="stat-total-masses" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+                </div>
+                <div class="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-100">
+                    <p class="text-xs text-slate-500 font-medium uppercase">Inscrições Confirmadas</p>
+                    <p id="stat-total-volunteers" class="text-2xl font-bold text-liturgic-wine mt-1">0</p>
+                </div>
+                <div class="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-100">
+                    <p class="text-xs text-slate-500 font-medium uppercase">Vagas Restantes</p>
+                    <p id="stat-remaining-slots" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
+                </div>
+                <div class="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-100">
+                    <p class="text-xs text-slate-500 font-medium uppercase">Missas Lotadas</p>
+                    <p id="stat-full-masses" class="text-2xl font-bold text-amber-600 mt-1">0</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <button onclick="openChangePasswordModal()" class="text-xs text-slate-700 font-semibold hover:text-liturgic-wine underline flex items-center gap-1 bg-white/70 px-3 py-1 rounded-lg backdrop-blur-sm">
+                    <i class="fa-solid fa-key"></i> Alterar senha do coordenador
+                </button>
+            </div>
+
+            <div id="masses-list-admin" class="space-y-4">
+                <!-- Missas com controles do admin carregadas via JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Rodapé Minimalista (Mesma cor do cabeçalho) -->
+    <footer class="bg-liturgic-wine h-6 border-t-4 border-liturgic-gold mt-10 shadow-lg"></footer>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Modal 1: Login de Coordenador -->
+    <div id="modal-login" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+            <div class="bg-liturgic-wine text-white p-5 text-center relative">
+                <button onclick="closeModal('modal-login')" class="absolute top-4 right-4 text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <div class="w-12 h-12 bg-liturgic-gold text-liturgic-winedark rounded-full flex items-center justify-center mx-auto mb-2 text-xl shadow-inner">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="text-xl font-bold text-liturgic-goldlight">Acesso Restrito</h3>
+                <p class="text-xs text-rose-200 mt-0.5">Área restrita ao Coordenador</p>
+            </div>
+            <form onsubmit="handleAdminLogin(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Senha de Acesso</label>
+                    <input type="password" id="login-password" required placeholder="Digite a senha..." class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-liturgic-wine focus:outline-none">
+                  
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('modal-login')" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 text-sm bg-liturgic-wine hover:bg-liturgic-winedark text-white font-medium rounded-lg shadow">Entrar no Painel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 2: Cadastro de Servidor (Público) -->
+    <div id="modal-register" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="bg-liturgic-wine text-white p-5 relative">
+                <button onclick="closeModal('modal-register')" class="absolute top-4 right-4 text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <h3 class="text-xl font-bold text-liturgic-goldlight" id="reg-modal-title">Inscrição para Servir na Missa</h3>
+                <p class="text-xs text-rose-100 mt-1" id="reg-modal-subtitle">Data e Horário da Celebração</p>
+            </div>
+            <form id="form-register" onsubmit="handleVolunteerRegister(event)" class="p-6 space-y-4 overflow-y-auto">
+                <input type="hidden" id="reg-mass-id">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Nome Completo *</label>
+                    <input type="text" id="reg-name" required placeholder="Ex: Gabriel Santos Silva" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-liturgic-wine focus:outline-none">
+                </div>
+
+                
+               
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Função / Ministério *</label>
+                    <select id="reg-role" required class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-liturgic-wine focus:outline-none bg-white">
+                        <option value="">Selecione sua função...</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Observações (Opcional)</label>
+                    <textarea id="reg-notes" rows="2" placeholder="Ex: Servindo na matriz..." class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-liturgic-wine focus:outline-none"></textarea>
+                </div>
+
+                <div class="pt-3 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('modal-register')" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                    <button type="submit" class="px-6 py-2 text-sm bg-liturgic-wine hover:bg-liturgic-winedark text-white font-bold rounded-lg shadow">Confirmar Inscrição</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 3: Criar/Editar Missa (Admin) -->
+    <div id="modal-mass" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="bg-liturgic-navy text-white p-5 relative">
+                <button onclick="closeModal('modal-mass')" class="absolute top-4 right-4 text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <h3 class="text-xl font-bold" id="mass-modal-title">Nova Celebração</h3>
+                <p class="text-xs text-slate-300">Cadastre a data, horário e defina as vagas para Coroinha e Cerimoniário</p>
+            </div>
+            <form id="form-mass" onsubmit="handleSaveMass(event)" class="p-6 space-y-4 overflow-y-auto">
+                <input type="hidden" id="mass-id">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Título / Celebração *</label>
+                    <input type="text" id="mass-title" required placeholder="Ex: Missa Dominical / Solenidade" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-liturgic-navy focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Data *</label>
+                        <input type="date" id="mass-date" required class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-liturgic-navy focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Horário *</label>
+                        <input type="time" id="mass-time" required class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-liturgic-navy focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-200 pt-3">
+                    <label class="block text-xs font-bold text-liturgic-navy uppercase mb-2">Vagas Limite para esta Missa *</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Coroinhas</label>
+                            <input type="number" id="limit-coroinha" min="0" max="50" value="5" required class="w-full px-3 py-1.5 border border-slate-300 rounded text-sm bg-white">
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Cerimoniários</label>
+                            <input type="number" id="limit-cerimoniario" min="0" max="50" value="3" required class="w-full px-3 py-1.5 border border-slate-300 rounded text-sm bg-white">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Instruções aos Servidores (Opcional)</label>
+                    <textarea id="mass-notes" rows="2" placeholder="Ex: Chegar com 20 min de antecedência." class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-liturgic-navy focus:outline-none"></textarea>
+                </div>
+
+                <div class="pt-3 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('modal-mass')" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                    <button type="submit" class="px-6 py-2 text-sm bg-liturgic-navy hover:bg-slate-800 text-white font-bold rounded-lg shadow">Salvar Celebração</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 4: Visualizar Inscritos e Exportar Escala (Admin) -->
+    <div id="modal-volunteers" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="bg-liturgic-wine text-white p-5 relative flex justify-between items-start">
+                <div>
+                    <h3 class="text-xl font-bold text-liturgic-goldlight" id="vol-modal-title">Lista de Inscritos</h3>
+                    <p class="text-xs text-rose-200 mt-0.5" id="vol-modal-subtitle">Detalhes da celebração</p>
+                </div>
+                <button onclick="closeModal('modal-volunteers')" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="p-6 space-y-4 overflow-y-auto flex-grow">
+                <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+                    <div class="text-sm text-slate-600">
+                        Total: <span id="vol-modal-count" class="font-bold text-slate-900">0</span> servidor(es) cadastrado(s).
+                    </div>
+                    <button onclick="exportMassSchedule()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow flex items-center justify-center gap-2">
+                        <i class="fa-brands fa-whatsapp text-sm"></i> Copiar Escala p/ WhatsApp
+                    </button>
+                </div>
+
+                <div class="border border-slate-200 rounded-xl overflow-hidden">
+                    <div id="volunteers-list-container" class="divide-y divide-slate-100">
+                        <!-- Renderizado dinamicamente -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-end">
+                <button onclick="closeModal('modal-volunteers')" class="px-5 py-2 text-sm bg-slate-200 hover:bg-slate-300 font-medium text-slate-700 rounded-lg">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: Alterar Senha de Coordenador -->
+    <div id="modal-change-password" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div class="bg-slate-800 text-white p-4">
+                <h3 class="font-bold">Alterar Senha do Coordenador</h3>
+            </div>
+            <form onsubmit="handleChangePassword(event)" class="p-5 space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Senha Atual</label>
+                    <input type="password" id="pass-current" required class="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-liturgic-wine">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Nova Senha</label>
+                    <input type="password" id="pass-new" required class="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-liturgic-wine">
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('modal-change-password')" class="px-3 py-1.5 text-xs text-slate-600">Cancelar</button>
+                    <button type="submit" class="px-4 py-1.5 text-xs bg-liturgic-wine text-white font-bold rounded">Salvar Nova Senha</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 6: Confirmação do Cadastro (Visual) -->
+    <div id="modal-success-confirm" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-center p-6 space-y-4">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-bold text-slate-800 header-title">Inscrição Confirmada!</h3>
+                <p class="text-sm text-slate-600 mt-1">Que Deus abençoe seu serviço no altar.</p>
+            </div>
+            <div id="success-summary" class="bg-liturgic-cream p-4 rounded-xl text-left text-xs space-y-2 border border-amber-200/60">
+                <!-- Resumo gerado via JS -->
+            </div>
+            <button onclick="closeModal('modal-success-confirm')" class="w-full py-2.5 bg-liturgic-wine hover:bg-liturgic-winedark text-white font-bold rounded-lg shadow">
+                Concluído
+            </button>
+        </div>
+    </div>
+
+
+    <!-- ================= JAVASCRIPT LOGIC ================= -->
+    <script>
+        const STORAGE_KEY_MASSES = 'catolica_escala_masses_v5';
+        const STORAGE_KEY_ADMIN_PASS = 'catolica_escala_admin_pass_v2';
+
+        let masses = [];
+        let adminPassword = '1509';
+        let isAdminLoggedIn = false;
+        let activeVolunteersMassId = null;
+
+        const defaultLimits = {
+            'Coroinha': 5,
+            'Cerimoniário': 3
+        };
+
+        const sampleMasses = [
+            {
+                id: 'mass-1',
+                title: 'Missa Dominical Solene',
+                date: getRelativeDate(3),
+                time: '09:00',
+                limits: { 'Coroinha': 4, 'Cerimoniário': 2 },
+                notes: 'Chegar com 20 minutos de antecedência.',
+                volunteers: [
+                    { id: 'v1', name: 'João Paulo Fernandes', phone: '(11) 98888-1111', role: 'Coroinha', registeredAt: '2026-10-25 10:00', notes: '' },
+                    { id: 'v2', name: 'Maria Madalena', phone: '(11) 97777-2222', role: 'Cerimoniário', registeredAt: '2026-10-25 10:30', notes: '' }
+                ]
+            },
+            {
+                id: 'mass-2',
+                title: 'Missa de Sábado à Noite',
+                date: getRelativeDate(2),
+                time: '19:30',
+                limits: { 'Coroinha': 3, 'Cerimoniário': 1 },
+                notes: 'Traje litúrgico padrão.',
+                volunteers: [
+                    { id: 'v4', name: 'Ana Clara Souza', phone: '(11) 95555-4444', role: 'Cerimoniário', registeredAt: '2026-10-26 09:00', notes: '' }
+                ]
+            }
+        ];
+
+        function getRelativeDate(daysAhead) {
+            const d = new Date();
+            d.setDate(d.getDate() + daysAhead);
+            return d.toISOString().split('T')[0];
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadStorageData();
+            renderPublicMasses();
+        });
+
+        function loadStorageData() {
+            const savedMasses = localStorage.getItem(STORAGE_KEY_MASSES);
+            if (savedMasses) {
+                try {
+                    masses = JSON.parse(savedMasses);
+                    masses.forEach(m => {
+                        if (!m.limits) m.limits = { ...defaultLimits };
+                        if (m.limits['Leitor']) delete m.limits['Leitor'];
+                        if (m.limits['Ministro Ext. da Eucaristia']) delete m.limits['Ministro Ext. da Eucaristia'];
+                        if (m.location) delete m.location;
+                    });
+                } catch(e) {
+                    masses = sampleMasses;
+                }
+            } else {
+                masses = sampleMasses;
+                saveMassesToStorage();
+            }
+
+            const savedPass = localStorage.getItem(STORAGE_KEY_ADMIN_PASS);
+            if (savedPass) {
+                adminPassword = savedPass;
+            }
+        }
+
+        function saveMassesToStorage() {
+            localStorage.setItem(STORAGE_KEY_MASSES, JSON.stringify(masses));
+            updateAdminStats();
+        }
+
+        function switchView(view) {
+            const publicView = document.getElementById('view-public');
+            const adminView = document.getElementById('view-admin');
+            const btnPublic = document.getElementById('btn-public-view');
+            const btnAdmin = document.getElementById('btn-admin-view');
+            const btnLogout = document.getElementById('btn-logout');
+
+            if (view === 'admin') {
+                if (!isAdminLoggedIn) {
+                    openAdminModal();
+                    return;
+                }
+                publicView.classList.add('hidden');
+                adminView.classList.remove('hidden');
+                btnPublic.classList.remove('bg-liturgic-gold', 'text-liturgic-winedark');
+                btnPublic.classList.add('bg-liturgic-winelight');
+                btnAdmin.classList.add('hidden');
+                btnLogout.classList.remove('hidden');
+                renderAdminMasses();
+                updateAdminStats();
+            } else {
+                adminView.classList.add('hidden');
+                publicView.classList.remove('hidden');
+                btnPublic.classList.add('bg-liturgic-winelight');
+                btnAdmin.classList.remove('hidden');
+                btnLogout.classList.add('hidden');
+                renderPublicMasses();
+            }
+        }
+
+        function formatDateBR(dateStr) {
+            if(!dateStr) return '';
+            const parts = dateStr.split('-');
+            if(parts.length !== 3) return dateStr;
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        function getDayOfWeek(dateStr) {
+            if(!dateStr) return '';
+            const [y, m, d] = dateStr.split('-').map(Number);
+            const date = new Date(y, m - 1, d);
+            const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+            return days[date.getDay()];
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `px-4 py-3 rounded-lg shadow-lg text-sm text-white font-medium flex items-center gap-2 pointer-events-auto transition-all transform translate-y-2 opacity-0 ${
+                type === 'error' ? 'bg-red-600' : 'bg-emerald-700'
+            }`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        // ================= PUBLIC VIEW RENDERING =================
+        function renderPublicMasses() {
+            const container = document.getElementById('masses-list-public');
+            const searchTerm = document.getElementById('public-search').value.toLowerCase().trim();
+
+            const filtered = masses.filter(m => 
+                m.title.toLowerCase().includes(searchTerm) || 
+                m.date.includes(searchTerm)
+            );
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full bg-white/90 backdrop-blur-md p-8 rounded-xl text-center text-slate-500 shadow-sm">
+                        <i class="fa-solid fa-calendar-xmark text-4xl mb-2 text-slate-300"></i>
+                        <p class="font-medium">Nenhuma celebração encontrada.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(mass => {
+                let rolesHTML = '';
+                let totalLimit = 0;
+                let totalFilled = 0;
+
+                const allowedRoles = ['Coroinha', 'Cerimoniário'];
+                allowedRoles.forEach(role => {
+                    const limit = mass.limits[role] || 0;
+                    const filled = (mass.volunteers || []).filter(v => v.role === role).length;
+                    totalLimit += limit;
+                    totalFilled += filled;
+                    const isFullRole = filled >= limit;
+
+                    rolesHTML += `
+                        <div class="flex justify-between items-center text-xs py-1 border-b border-slate-100 last:border-0">
+                            <span class="font-medium text-slate-700">${role}:</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-500">${filled}/${limit} vagas</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isFullRole ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">
+                                    ${isFullRole ? 'Esgotado' : 'Disponível'}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                const isTotalFull = totalFilled >= totalLimit;
+
+                return `
+                    <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col justify-between hover:shadow-md transition">
+                        <div class="p-5 border-b border-slate-100 bg-liturgic-cream/60">
+                            <div class="flex justify-between items-start gap-2">
+                                <div>
+                                    <span class="text-xs font-semibold text-liturgic-wine bg-liturgic-gold/20 px-2 py-0.5 rounded-full">${getDayOfWeek(mass.date)}, ${formatDateBR(mass.date)} • ${mass.time}</span>
+                                    <h3 class="text-lg font-bold text-slate-900 mt-1">${mass.title}</h3>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-full text-xs font-bold ${isTotalFull ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">
+                                    ${isTotalFull ? 'Esgotado' : `${totalLimit - totalFilled} vagas totais`}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="p-5 space-y-3 flex-grow">
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
+                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Status de Vagas por Função</p>
+                                ${rolesHTML}
+                            </div>
+                            ${mass.notes ? `<p class="text-xs text-slate-600 italic bg-amber-50/50 p-2.5 rounded-lg border border-amber-100"><i class="fa-solid fa-circle-info text-amber-600 mr-1"></i> ${mass.notes}</p>` : ''}
+                        </div>
+
+                        <div class="p-5 pt-0">
+                            <button onclick="openRegisterModal('${mass.id}')" class="w-full py-2.5 rounded-xl text-sm font-bold shadow transition flex items-center justify-center gap-2 ${
+                                isTotalFull 
+                                ? 'bg-slate-200 text-slate-500 cursor-not-allowed' 
+                                : 'bg-liturgic-wine hover:bg-liturgic-winedark text-white'
+                            }">
+                                <i class="fa-solid fa-user-plus"></i> Inscrever-se para Servir
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ================= VOLUNTEER REGISTRATION =================
+        function openRegisterModal(massId) {
+            const mass = masses.find(m => m.id === massId);
+            if (!mass) return;
+
+            let totalLimit = 0;
+            let totalFilled = 0;
+            ['Coroinha', 'Cerimoniário'].forEach(role => {
+                totalLimit += (mass.limits[role] || 0);
+                totalFilled += (mass.volunteers || []).filter(v => v.role === role).length;
+            });
+
+            if (totalFilled >= totalLimit) {
+                showToast('Infelizmente todas as vagas para esta celebração estão esgotadas!', 'error');
+                return;
+            }
+
+            document.getElementById('reg-mass-id').value = mass.id;
+            document.getElementById('reg-modal-title').textContent = mass.title;
+            document.getElementById('reg-modal-subtitle').textContent = `${getDayOfWeek(mass.date)}, ${formatDateBR(mass.date)} às ${mass.time}`;
+            
+            document.getElementById('form-register').reset();
+            document.getElementById('reg-mass-id').value = mass.id;
+
+            const roleSelect = document.getElementById('reg-role');
+            roleSelect.innerHTML = '<option value="">Selecione sua função...</option>';
+
+            ['Coroinha', 'Cerimoniário'].forEach(role => {
+                const limit = mass.limits[role] || 0;
+                const filled = (mass.volunteers || []).filter(v => v.role === role).length;
+                if (filled < limit) {
+                    const opt = document.createElement('option');
+                    opt.value = role;
+                    opt.textContent = `${role} (${limit - filled} vaga(s) restante(s))`;
+                    roleSelect.appendChild(opt);
+                }
+            });
+
+            openModal('modal-register');
+        }
+
+        function handleVolunteerRegister(event) {
+            event.preventDefault();
+            const massId = document.getElementById('reg-mass-id').value;
+            const name = document.getElementById('reg-name').value.trim();
+            const role = document.getElementById('reg-role').value;
+            const notes = document.getElementById('reg-notes').value.trim();
+
+            const mass = masses.find(m => m.id === massId);
+            if (!mass) return;
+
+            const roleLimit = mass.limits[role] || 0;
+            const roleFilled = (mass.volunteers || []).filter(v => v.role === role).length;
+
+            if (roleFilled >= roleLimit) {
+                showToast(`As vagas para ${role} acabaram de esgotar. Escolha outra função.`, 'error');
+                return;
+            }
+
+            if (!mass.volunteers) mass.volunteers = [];
+
+            const now = new Date();
+            const dateFormatted = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+            const newVolunteer = {
+                id: 'v_' + Math.random().toString(36).substring(2),
+                name,
+                role,
+                registeredAt: dateFormatted,
+                notes
+            };
+
+            mass.volunteers.push(newVolunteer);
+            saveMassesToStorage();
+            closeModal('modal-register');
+
+            const summary = document.getElementById('success-summary');
+            summary.innerHTML = `
+                <p><strong>Celebração:</strong> ${mass.title}</p>
+                <p><strong>Data/Hora:</strong> ${formatDateBR(mass.date)} às ${mass.time}</p>
+                <p><strong>Servidor:</strong> ${name}</p>
+                <p><strong>Função:</strong> ${role}</p>
+            `;
+            openModal('modal-success-confirm');
+
+            renderPublicMasses();
+            if (isAdminLoggedIn) renderAdminMasses();
+        }
+
+        // ================= ADMIN MANAGEMENT =================
+        function openAdminModal() {
+            if (isAdminLoggedIn) {
+                switchView('admin');
+                return;
+            }
+            openModal('modal-login');
+        }
+
+        function handleAdminLogin(event) {
+            event.preventDefault();
+            const pass = document.getElementById('login-password').value;
+            if (pass === adminPassword) {
+                isAdminLoggedIn = true;
+                closeModal('modal-login');
+                document.getElementById('login-password').value = '';
+                switchView('admin');
+                showToast('Login efetuado com sucesso!');
+            } else {
+                showToast('Senha incorreta!', 'error');
+            }
+        }
+
+        function logoutAdmin() {
+            isAdminLoggedIn = false;
+            switchView('public');
+            showToast('Você saiu do painel do coordenador.');
+        }
+
+        function updateAdminStats() {
+            let totalVolunteersCount = 0;
+            let totalLimitSum = 0;
+            let fullMassesCount = 0;
+
+            masses.forEach(m => {
+                const vols = (m.volunteers || []).length;
+                totalVolunteersCount += vols;
+                
+                let mLimit = 0;
+                ['Coroinha', 'Cerimoniário'].forEach(r => mLimit += (m.limits[r] || 0));
+                totalLimitSum += mLimit;
+
+                if (vols >= mLimit) fullMassesCount++;
+            });
+
+            document.getElementById('stat-total-masses').textContent = masses.length;
+            document.getElementById('stat-total-volunteers').textContent = totalVolunteersCount;
+            document.getElementById('stat-remaining-slots').textContent = Math.max(0, totalLimitSum - totalVolunteersCount);
+            document.getElementById('stat-full-masses').textContent = fullMassesCount;
+        }
+
+        function renderAdminMasses() {
+            const container = document.getElementById('masses-list-admin');
+            if (masses.length === 0) {
+                container.innerHTML = `<div class="bg-white/95 backdrop-blur-md p-8 rounded-xl text-center text-slate-500 shadow-sm">Nenhuma missa cadastrada.</div>`;
+                return;
+            }
+
+            container.innerHTML = masses.map(mass => {
+                let totalLimit = 0;
+                let totalFilled = (mass.volunteers || []).length;
+                ['Coroinha', 'Cerimoniário'].forEach(r => totalLimit += (mass.limits[r] || 0));
+
+                let limitsListHTML = '';
+                ['Coroinha', 'Cerimoniário'].forEach(r => {
+                    const filledRole = (mass.volunteers || []).filter(v => v.role === r).length;
+                    limitsListHTML += `<span class="bg-slate-100 px-2 py-1 rounded text-xs"><strong>${r}:</strong> ${filledRole}/${mass.limits[r] || 0}</span>`;
+                });
+
+                return `
+                    <div class="bg-white/95 backdrop-blur-md rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-liturgic-navy text-white text-xs px-2.5 py-0.5 rounded-full font-bold">${formatDateBR(mass.date)} • ${mass.time}</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-900">${mass.title}</h3>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                ${limitsListHTML}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                            <button onclick="openVolunteersModal('${mass.id}')" class="px-3.5 py-2 bg-liturgic-wine text-white text-xs font-bold rounded-lg shadow hover:bg-liturgic-winedark transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-users"></i> Inscritos (${totalFilled}/${totalLimit})
+                            </button>
+                            <button onclick="editMass('${mass.id}')" class="p-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg transition" title="Editar Vagas e Dados">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button onclick="deleteMass('${mass.id}')" class="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition" title="Excluir Missa">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Mass CRUD Admin
+        function openMassModal() {
+            document.getElementById('mass-id').value = '';
+            document.getElementById('mass-modal-title').textContent = 'Nova Celebração';
+            document.getElementById('form-mass').reset();
+            
+            document.getElementById('limit-coroinha').value = 5;
+            document.getElementById('limit-cerimoniario').value = 3;
+
+            openModal('modal-mass');
+        }
+
+        function editMass(id) {
+            const mass = masses.find(m => m.id === id);
+            if (!mass) return;
+
+            document.getElementById('mass-id').value = mass.id;
+            document.getElementById('mass-modal-title').textContent = 'Editar Celebração e Vagas';
+            document.getElementById('mass-title').value = mass.title;
+            document.getElementById('mass-date').value = mass.date;
+            document.getElementById('mass-time').value = mass.time;
+            document.getElementById('mass-notes').value = mass.notes || '';
+
+            document.getElementById('limit-coroinha').value = mass.limits['Coroinha'] || 0;
+            document.getElementById('limit-cerimoniario').value = mass.limits['Cerimoniário'] || 0;
+
+            openModal('modal-mass');
+        }
+
+        function handleSaveMass(event) {
+            event.preventDefault();
+            const id = document.getElementById('mass-id').value;
+            const title = document.getElementById('mass-title').value.trim();
+            const date = document.getElementById('mass-date').value;
+            const time = document.getElementById('mass-time').value;
+            const notes = document.getElementById('mass-notes').value.trim();
+
+            const limits = {
+                'Coroinha': parseInt(document.getElementById('limit-coroinha').value) || 0,
+                'Cerimoniário': parseInt(document.getElementById('limit-cerimoniario').value) || 0
+            };
+
+            if (id) {
+                const mass = masses.find(m => m.id === id);
+                if (mass) {
+                    mass.title = title;
+                    mass.date = date;
+                    mass.time = time;
+                    mass.limits = limits;
+                    mass.notes = notes;
+                }
+                showToast('Celebração atualizada com sucesso!');
+            } else {
+                const newMass = {
+                    id: 'm_' + Math.random().toString(36).substring(2, 9),
+                    title,
+                    date,
+                    time,
+                    limits,
+                    notes,
+                    volunteers: []
+                };
+                masses.push(newMass);
+                showToast('Nova celebração criada com sucesso!');
+            }
+
+            saveMassesToStorage();
+            closeModal('modal-mass');
+            renderAdminMasses();
+            renderPublicMasses();
+        }
+
+        function deleteMass(id) {
+            if (confirm('Tem certeza que deseja excluir esta celebração e todos os seus inscritos?')) {
+                masses = masses.filter(m => m.id !== id);
+                saveMassesToStorage();
+                renderAdminMasses();
+                renderPublicMasses();
+                showToast('Celebração excluída.');
+            }
+        }
+
+        // Volunteers Management Inside Admin
+        function openVolunteersModal(massId) {
+            activeVolunteersMassId = massId;
+            const mass = masses.find(m => m.id === massId);
+            if (!mass) return;
+
+            document.getElementById('vol-modal-title').textContent = `Inscritos: ${mass.title}`;
+            document.getElementById('vol-modal-subtitle').textContent = `${getDayOfWeek(mass.date)}, ${formatDateBR(mass.date)} às ${mass.time}`;
+            document.getElementById('vol-modal-count').textContent = (mass.volunteers || []).length;
+
+            renderVolunteersList(mass);
+            openModal('modal-volunteers');
+        }
+
+		function renderVolunteersList(mass) {
+            const container = document.getElementById('volunteers-list-container');
+            const volunteers = mass.volunteers || [];
+
+            if (volunteers.length === 0) {
+                container.innerHTML = `<div class="p-6 text-center text-slate-400 text-sm">Nenhum servidor inscrito até o momento.</div>`;
+                return;
+            }
+
+            container.innerHTML = volunteers.map(v => `
+                <div class="p-4 flex items-center justify-between gap-3 hover:bg-slate-50 transition">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-slate-900 text-sm">${v.name}</span>
+                            <span class="bg-liturgic-gold/20 text-liturgic-wine px-2 py-0.5 rounded text-xs font-semibold">${v.role}</span>
+                        </div>
+                        ${v.notes ? `<p class="text-xs text-slate-500 mt-0.5"><em>Obs: ${v.notes}</em></p>` : ''}
+                    </div>
+                    <button onclick="removeVolunteer('${mass.id}', '${v.id}')" class="text-red-500 hover:text-red-700 p-2" title="Remover Inscrição">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeVolunteer(massId, volunteerId) {
+            if (confirm('Deseja remover este servidor da escala desta missa?')) {
+                const mass = masses.find(m => m.id === massId);
+                if (mass) {
+                    mass.volunteers = mass.volunteers.filter(v => v.id !== volunteerId);
+                    saveMassesToStorage();
+                    renderVolunteersList(mass);
+                    document.getElementById('vol-modal-count').textContent = mass.volunteers.length;
+                    renderAdminMasses();
+                    renderPublicMasses();
+                    showToast('Inscrição removida.');
+                }
+            }
+        }
+
+        function exportMassSchedule() {
+            const mass = masses.find(m => m.id === activeVolunteersMassId);
+            if (!mass) return;
+
+            let text = `*ESCALA DE SERVIDORES - ${mass.title.toUpperCase()}*\n`;
+            text += `📅 Data: ${getDayOfWeek(mass.date)}, ${formatDateBR(mass.date)} às ${mass.time}\n\n`;
+            text += `*Servidores Confirmados:*\n`;
+
+            if (!mass.volunteers || mass.volunteers.length === 0) {
+                text += `_Nenhum servidor inscrito ainda._\n`;
+            } else {
+                mass.volunteers.forEach((v, index) => {
+                    text += `${index + 1}. ${v.name} (${v.role})\n`;
+                });
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Escala copiada para a área de transferência! Cole no WhatsApp.');
+            }).catch(() => {
+                showToast('Erro ao copiar texto.', 'error');
+            });
+        }
+
+        function openChangePasswordModal() {
+            openModal('modal-change-password');
+        }
+
+        function handleChangePassword(event) {
+            event.preventDefault();
+            const current = document.getElementById('pass-current').value;
+            const newPass = document.getElementById('pass-new').value;
+
+            if (current !== adminPassword) {
+                showToast('Senha atual incorreta!', 'error');
+                return;
+            }
+
+            adminPassword = newPass;
+            localStorage.setItem(STORAGE_KEY_ADMIN_PASS, newPass);
+            closeModal('modal-change-password');
+            document.getElementById('pass-current').value = '';
+            document.getElementById('pass-new').value = '';
+            showToast('Senha alterada com sucesso!');
+        }
+    </script>
+</body>
+</html>
