@@ -93,7 +93,7 @@
     </header>
 
     <!-- Notification Toast -->
-	<div id="toast-container" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none"></div>
 
     <!-- Main Content Area -->
     <main class="max-w-6xl mx-auto px-4 py-8 w-full flex-grow">
@@ -133,7 +133,6 @@
         <section id="view-admin" class="hidden space-y-6">
             <div class="bg-liturgic-navy/95 backdrop-blur-md text-white p-6 rounded-xl shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    
                     <h2 class="text-2xl font-bold mt-1 text-white">Gestão da Coordenadoria</h2>
                     <p class="text-sm text-slate-300">Ajuste os limites de Coroinhas e Cerimoniários, adicione celebrações e gerencie a lista.</p>
                 </div>
@@ -175,7 +174,7 @@
 
     </main>
 
-    <!-- Rodapé Minimalista (Mesma cor do cabeçalho) -->
+    <!-- Rodapé Minimalista -->
     <footer class="bg-liturgic-wine h-6 border-t-4 border-liturgic-gold mt-10 shadow-lg"></footer>
 
     <!-- ================= MODALS ================= -->
@@ -195,7 +194,6 @@
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Senha de Acesso</label>
                     <input type="password" id="login-password" required placeholder="Digite a senha..." class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-liturgic-wine focus:outline-none">
-                  
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeModal('modal-login')" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
@@ -221,8 +219,6 @@
                     <input type="text" id="reg-name" required placeholder="Ex: Gabriel Santos Silva" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-liturgic-wine focus:outline-none">
                 </div>
 
-                
-               
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Função / Ministério *</label>
                     <select id="reg-role" required class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-liturgic-wine focus:outline-none bg-white">
@@ -374,9 +370,27 @@
     </div>
 
 
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
     <!-- ================= JAVASCRIPT LOGIC ================= -->
     <script>
-        const STORAGE_KEY_MASSES = 'catolica_escala_masses_v5';
+        // CONFIGURAÇÃO DO FIREBASE (Substitua abaixo com as chaves reais do seu projeto do Firebase)
+        const firebaseConfig = {
+            apiKey: "SUA_API_KEY",
+            authDomain: "SEU_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://SEU_PROJECT_ID-default-rtdb.firebaseio.com",
+            projectId: "SEU_PROJECT_ID",
+            storageBucket: "SEU_PROJECT_ID.appspot.com",
+            messagingSenderId: "SEU_SENDER_ID",
+            appId: "SEU_APP_ID"
+        };
+
+        // Inicializa o Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
         const STORAGE_KEY_ADMIN_PASS = 'catolica_escala_admin_pass_v2';
 
         let masses = [];
@@ -384,76 +398,40 @@
         let isAdminLoggedIn = false;
         let activeVolunteersMassId = null;
 
-        const defaultLimits = {
-            'Coroinha': 5,
-            'Cerimoniário': 3
-        };
-
-        const sampleMasses = [
-            {
-                id: 'mass-1',
-                title: 'Missa Dominical Solene',
-                date: getRelativeDate(3),
-                time: '09:00',
-                limits: { 'Coroinha': 4, 'Cerimoniário': 2 },
-                notes: 'Chegar com 20 minutos de antecedência.',
-                volunteers: [
-                    { id: 'v1', name: 'João Paulo Fernandes', phone: '(11) 98888-1111', role: 'Coroinha', registeredAt: '2026-10-25 10:00', notes: '' },
-                    { id: 'v2', name: 'Maria Madalena', phone: '(11) 97777-2222', role: 'Cerimoniário', registeredAt: '2026-10-25 10:30', notes: '' }
-                ]
-            },
-            {
-                id: 'mass-2',
-                title: 'Missa de Sábado à Noite',
-                date: getRelativeDate(2),
-                time: '19:30',
-                limits: { 'Coroinha': 3, 'Cerimoniário': 1 },
-                notes: 'Traje litúrgico padrão.',
-                volunteers: [
-                    { id: 'v4', name: 'Ana Clara Souza', phone: '(11) 95555-4444', role: 'Cerimoniário', registeredAt: '2026-10-26 09:00', notes: '' }
-                ]
-            }
-        ];
-
-        function getRelativeDate(daysAhead) {
-            const d = new Date();
-            d.setDate(d.getDate() + daysAhead);
-            return d.toISOString().split('T')[0];
-        }
-
         window.addEventListener('DOMContentLoaded', () => {
-            loadStorageData();
-            renderPublicMasses();
+            loadPassword();
+            listenToFirebaseData();
         });
 
-        function loadStorageData() {
-            const savedMasses = localStorage.getItem(STORAGE_KEY_MASSES);
-            if (savedMasses) {
-                try {
-                    masses = JSON.parse(savedMasses);
-                    masses.forEach(m => {
-                        if (!m.limits) m.limits = { ...defaultLimits };
-                        if (m.limits['Leitor']) delete m.limits['Leitor'];
-                        if (m.limits['Ministro Ext. da Eucaristia']) delete m.limits['Ministro Ext. da Eucaristia'];
-                        if (m.location) delete m.location;
-                    });
-                } catch(e) {
-                    masses = sampleMasses;
+        // Escuta os dados do Firebase em tempo real
+        function listenToFirebaseData() {
+            db.ref('masses').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    masses = Object.keys(data).map(key => ({
+                        id: key,
+                        ...data[key],
+                        volunteers: data[key].volunteers ? Object.keys(data[key].volunteers).map(vKey => ({
+                            id: vKey,
+                            ...data[key].volunteers[vKey]
+                        })) : []
+                    }));
+                } else {
+                    masses = [];
                 }
-            } else {
-                masses = sampleMasses;
-                saveMassesToStorage();
-            }
+                renderPublicMasses();
+                if (isAdminLoggedIn) {
+                    renderAdminMasses();
+                    updateAdminStats();
+                }
+            });
+        }
 
+        function loadPassword() {
             const savedPass = localStorage.getItem(STORAGE_KEY_ADMIN_PASS);
             if (savedPass) {
                 adminPassword = savedPass;
             }
-        }
-
-        function saveMassesToStorage() {
-            localStorage.setItem(STORAGE_KEY_MASSES, JSON.stringify(masses));
-            updateAdminStats();
         }
 
         function switchView(view) {
@@ -547,7 +525,7 @@
 
                 const allowedRoles = ['Coroinha', 'Cerimoniário'];
                 allowedRoles.forEach(role => {
-                    const limit = mass.limits[role] || 0;
+                    const limit = (mass.limits && mass.limits[role]) ? mass.limits[role] : 0;
                     const filled = (mass.volunteers || []).filter(v => v.role === role).length;
                     totalLimit += limit;
                     totalFilled += filled;
@@ -577,7 +555,7 @@
                                     <h3 class="text-lg font-bold text-slate-900 mt-1">${mass.title}</h3>
                                 </div>
                                 <span class="px-2.5 py-1 rounded-full text-xs font-bold ${isTotalFull ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">
-                                    ${isTotalFull ? 'Esgotado' : `${totalLimit - totalFilled} vagas totais`}
+                                    ${isTotalFull ? 'Esgotado' : `${totalLimit - totalFilled} vagas tot.`}
                                 </span>
                             </div>
                         </div>
@@ -612,7 +590,7 @@
             let totalLimit = 0;
             let totalFilled = 0;
             ['Coroinha', 'Cerimoniário'].forEach(role => {
-                totalLimit += (mass.limits[role] || 0);
+                totalLimit += (mass.limits ? mass.limits[role] || 0 : 0);
                 totalFilled += (mass.volunteers || []).filter(v => v.role === role).length;
             });
 
@@ -632,7 +610,7 @@
             roleSelect.innerHTML = '<option value="">Selecione sua função...</option>';
 
             ['Coroinha', 'Cerimoniário'].forEach(role => {
-                const limit = mass.limits[role] || 0;
+                const limit = (mass.limits && mass.limits[role]) ? mass.limits[role] : 0;
                 const filled = (mass.volunteers || []).filter(v => v.role === role).length;
                 if (filled < limit) {
                     const opt = document.createElement('option');
@@ -655,7 +633,7 @@
             const mass = masses.find(m => m.id === massId);
             if (!mass) return;
 
-            const roleLimit = mass.limits[role] || 0;
+            const roleLimit = (mass.limits && mass.limits[role]) ? mass.limits[role] : 0;
             const roleFilled = (mass.volunteers || []).filter(v => v.role === role).length;
 
             if (roleFilled >= roleLimit) {
@@ -663,34 +641,30 @@
                 return;
             }
 
-            if (!mass.volunteers) mass.volunteers = [];
-
             const now = new Date();
             const dateFormatted = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
             const newVolunteer = {
-                id: 'v_' + Math.random().toString(36).substring(2),
                 name,
                 role,
                 registeredAt: dateFormatted,
                 notes
             };
 
-            mass.volunteers.push(newVolunteer);
-            saveMassesToStorage();
-            closeModal('modal-register');
-
-            const summary = document.getElementById('success-summary');
-            summary.innerHTML = `
-                <p><strong>Celebração:</strong> ${mass.title}</p>
-                <p><strong>Data/Hora:</strong> ${formatDateBR(mass.date)} às ${mass.time}</p>
-                <p><strong>Servidor:</strong> ${name}</p>
-                <p><strong>Função:</strong> ${role}</p>
-            `;
-            openModal('modal-success-confirm');
-
-            renderPublicMasses();
-            if (isAdminLoggedIn) renderAdminMasses();
+            // Salva no Firebase em tempo real
+            db.ref(`masses/${massId}/volunteers`).push(newVolunteer).then(() => {
+                closeModal('modal-register');
+                const summary = document.getElementById('success-summary');
+                summary.innerHTML = `
+                    <p><strong>Celebração:</strong> ${mass.title}</p>
+                    <p><strong>Data/Hora:</strong> ${formatDateBR(mass.date)} às ${mass.time}</p>
+                    <p><strong>Servidor:</strong> ${name}</p>
+                    <p><strong>Função:</strong> ${role}</p>
+                `;
+                openModal('modal-success-confirm');
+            }).catch(() => {
+                showToast('Erro ao gravar dados no servidor.', 'error');
+            });
         }
 
         // ================= ADMIN MANAGEMENT =================
@@ -732,7 +706,7 @@
                 totalVolunteersCount += vols;
                 
                 let mLimit = 0;
-                ['Coroinha', 'Cerimoniário'].forEach(r => mLimit += (m.limits[r] || 0));
+                ['Coroinha', 'Cerimoniário'].forEach(r => mLimit += (m.limits ? m.limits[r] || 0 : 0));
                 totalLimitSum += mLimit;
 
                 if (vols >= mLimit) fullMassesCount++;
@@ -754,12 +728,12 @@
             container.innerHTML = masses.map(mass => {
                 let totalLimit = 0;
                 let totalFilled = (mass.volunteers || []).length;
-                ['Coroinha', 'Cerimoniário'].forEach(r => totalLimit += (mass.limits[r] || 0));
+                ['Coroinha', 'Cerimoniário'].forEach(r => totalLimit += (mass.limits ? mass.limits[r] || 0 : 0));
 
                 let limitsListHTML = '';
                 ['Coroinha', 'Cerimoniário'].forEach(r => {
                     const filledRole = (mass.volunteers || []).filter(v => v.role === r).length;
-                    limitsListHTML += `<span class="bg-slate-100 px-2 py-1 rounded text-xs"><strong>${r}:</strong> ${filledRole}/${mass.limits[r] || 0}</span>`;
+                    limitsListHTML += `<span class="bg-slate-100 px-2 py-1 rounded text-xs"><strong>${r}:</strong> ${filledRole}/${mass.limits ? mass.limits[r] || 0 : 0}</span>`;
                 });
 
                 return `
@@ -812,8 +786,8 @@
             document.getElementById('mass-time').value = mass.time;
             document.getElementById('mass-notes').value = mass.notes || '';
 
-            document.getElementById('limit-coroinha').value = mass.limits['Coroinha'] || 0;
-            document.getElementById('limit-cerimoniario').value = mass.limits['Cerimoniário'] || 0;
+            document.getElementById('limit-coroinha').value = (mass.limits && mass.limits['Coroinha']) ? mass.limits['Coroinha'] : 0;
+            document.getElementById('limit-cerimoniario').value = (mass.limits && mass.limits['Cerimoniário']) ? mass.limits['Cerimoniário'] : 0;
 
             openModal('modal-mass');
         }
@@ -831,43 +805,32 @@
                 'Cerimoniário': parseInt(document.getElementById('limit-cerimoniario').value) || 0
             };
 
-            if (id) {
-                const mass = masses.find(m => m.id === id);
-                if (mass) {
-                    mass.title = title;
-                    mass.date = date;
-                    mass.time = time;
-                    mass.limits = limits;
-                    mass.notes = notes;
-                }
-                showToast('Celebração atualizada com sucesso!');
-            } else {
-                const newMass = {
-                    id: 'm_' + Math.random().toString(36).substring(2, 9),
-                    title,
-                    date,
-                    time,
-                    limits,
-                    notes,
-                    volunteers: []
-                };
-                masses.push(newMass);
-                showToast('Nova celebração criada com sucesso!');
-            }
+            const massData = {
+                title,
+                date,
+                time,
+                limits,
+                notes
+            };
 
-            saveMassesToStorage();
-            closeModal('modal-mass');
-            renderAdminMasses();
-            renderPublicMasses();
+            if (id) {
+                db.ref(`masses/${id}`).update(massData).then(() => {
+                    showToast('Celebração atualizada com sucesso!');
+                    closeModal('modal-mass');
+                });
+            } else {
+                db.ref('masses').push(massData).then(() => {
+                    showToast('Nova celebração criada com sucesso!');
+                    closeModal('modal-mass');
+                });
+            }
         }
 
         function deleteMass(id) {
             if (confirm('Tem certeza que deseja excluir esta celebração e todos os seus inscritos?')) {
-                masses = masses.filter(m => m.id !== id);
-                saveMassesToStorage();
-                renderAdminMasses();
-                renderPublicMasses();
-                showToast('Celebração excluída.');
+                db.ref(`masses/${id}`).remove().then(() => {
+                    showToast('Celebração excluída.');
+                });
             }
         }
 
@@ -885,7 +848,7 @@
             openModal('modal-volunteers');
         }
 
-		function renderVolunteersList(mass) {
+        function renderVolunteersList(mass) {
             const container = document.getElementById('volunteers-list-container');
             const volunteers = mass.volunteers || [];
 
@@ -912,16 +875,14 @@
 
         function removeVolunteer(massId, volunteerId) {
             if (confirm('Deseja remover este servidor da escala desta missa?')) {
-                const mass = masses.find(m => m.id === massId);
-                if (mass) {
-                    mass.volunteers = mass.volunteers.filter(v => v.id !== volunteerId);
-                    saveMassesToStorage();
-                    renderVolunteersList(mass);
-                    document.getElementById('vol-modal-count').textContent = mass.volunteers.length;
-                    renderAdminMasses();
-                    renderPublicMasses();
+                db.ref(`masses/${massId}/volunteers/${volunteerId}`).remove().then(() => {
                     showToast('Inscrição removida.');
-                }
+                    const mass = masses.find(m => m.id === massId);
+                    if (mass) {
+                        renderVolunteersList(mass);
+                        document.getElementById('vol-modal-count').textContent = (mass.volunteers || []).length;
+                    }
+                });
             }
         }
 
